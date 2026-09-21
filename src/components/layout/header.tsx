@@ -1,0 +1,2 @@
+import { Menu } from "lucide-react";
+export function Header() { return <header className="site-header"><div className="container header-inner"><a className="logo" href="#">Psico<span>Encontre</span></a><nav aria-label="Navegação principal"><a href="#sobre">Sobre nós</a><a href="#como-funciona">Como funciona</a><a href="#blog">Blog</a></nav><div className="header-actions"><a href="#entrar">Entrar</a><a className="button primary small" href="#criar-conta">Criar conta</a></div><button className="menu-button" aria-label="Abrir menu"><Menu /></button></div></header>; }

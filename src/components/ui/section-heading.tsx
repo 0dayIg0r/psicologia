@@ -1,0 +1,2 @@
+export function Eyebrow({children, light=false}:{children:React.ReactNode;light?:boolean}) { return <p className={`eyebrow${light?" light":""}`}>{children}</p>; }
+export function SectionHeading({eyebrow,title,description,center=false}:{eyebrow:string;title:string;description?:string;center?:boolean}) { return <div className={`section-heading${center?" center":""}`}><Eyebrow>{eyebrow}</Eyebrow><h2>{title}</h2>{description?<p>{description}</p>:null}</div>; }
