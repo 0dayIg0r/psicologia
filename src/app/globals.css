@@ -12,7 +12,9 @@
 
 /* Interactive therapy finder */
 .therapy-toggle [data-slot=toggle-group-item]{height:44px;padding:0 20px;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;background:transparent;color:var(--body);font-size:14px;font-weight:600}
-.therapy-toggle [data-slot=toggle-group-item][data-state=on]{background:var(--green-100);color:var(--green-900)}
+.therapy-toggle > [data-slot=toggle-group-item]:hover{background-color:var(--green-50)!important;color:var(--green-900)}
+.therapy-toggle > [data-slot=toggle-group-item]:is([data-pressed],[aria-pressed=true]),
+.therapy-toggle > [data-slot=toggle-group-item]:is([data-pressed],[aria-pressed=true]):hover{background-color:var(--green-100)!important;color:var(--green-900)}
 .search-form{width:100%;max-width:650px;display:flex;grid-template-columns:none;transition:max-width .2s ease}
 .search-form[data-mode=presencial]{max-width:950px}
 .search-fields{display:grid;grid-template-columns:minmax(0,1fr);flex:1;gap:8px}
