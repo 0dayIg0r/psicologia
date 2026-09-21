@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  HeartHandshake,
   LockKeyhole,
   MapPin,
   Monitor,
@@ -42,7 +43,7 @@ const therapyTopics = [
   { label: "Outro tema", value: "outro" },
 ];
 
-type TherapyMode = "online" | "presencial";
+type TherapyMode = "online" | "presencial" | "social";
 
 export function Hero() {
   const [therapyMode, setTherapyMode] = useState<TherapyMode>("online");
@@ -51,7 +52,11 @@ export function Hero() {
   function handleModeChange(value: unknown[]) {
     const nextMode = value[0];
 
-    if (nextMode === "online" || nextMode === "presencial") {
+    if (
+      nextMode === "online" ||
+      nextMode === "presencial" ||
+      nextMode === "social"
+    ) {
       setTherapyMode(nextMode);
     }
   }
@@ -85,6 +90,14 @@ export function Hero() {
           <ToggleGroupItem value="presencial" aria-label="Terapia presencial">
             <MapPin data-icon="inline-start" />
             Terapia presencial
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="social"
+            aria-label="Terapia social, atendimento somente online"
+            data-therapy-social
+          >
+            <HeartHandshake data-icon="inline-start" />
+            Terapia social
           </ToggleGroupItem>
         </ToggleGroup>
 
