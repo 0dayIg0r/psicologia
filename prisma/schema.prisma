@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["app"]
+}
+
+enum UserRole {
+  PATIENT
+  PSYCHOLOGIST
+  ADMIN
+
+  @@schema("app")
+}
+
+enum ConsentType {
+  TERMS
+  PRIVACY
+
+  @@schema("app")
+}
+
+enum CrpStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  INACTIVE
+
+  @@schema("app")
+}
+
+enum PriceType {
+  STANDARD
+  SOCIAL
+
+  @@schema("app")
+}
+
+enum ThemeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@schema("app")
+}
+
+enum AppointmentType {
+  ONLINE
+  IN_PERSON
+  BOTH
+
+  @@schema("app")
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+  COMPLETED
+  NO_SHOW
+
+  @@schema("app")
+}
+
+enum PaymentProvider {
+  MERCADO_PAGO
+
+  @@schema("app")
+}
+
+enum PaymentMethod {
+  PIX
+  CARD
+
+  @@schema("app")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  REJECTED
+  CANCELED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CHARGEBACK
+
+  @@schema("app")
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  REJECTED
+  CANCELED
+
+  @@schema("app")
+}
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  HIDDEN
+  REMOVED
+
+  @@schema("app")
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+
+  @@schema("app")
+}
+
+model User {
+  id                  String               @id @db.Uuid
+  name                String               @db.VarChar(160)
+  cpf                 String               @unique @db.VarChar(11)
+  email               String               @unique @db.VarChar(320)
+  phone               String               @db.VarChar(16)
+  role                UserRole
+  isActive            Boolean              @default(true) @map("is_active")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  patientProfile      PatientProfile?
+  psychologist        Psychologist?
+  consents            UserConsent[]
+  patientAppointments Appointment[]        @relation("PatientAppointments")
+  createdAppointments Appointment[]        @relation("CreatedAppointments")
+  reviews             PsychologistReview[]
+  favorites           Favorite[]
+  auditLogs           AuditLog[]
+
+  @@map("users")
+  @@schema("app")
+}
+
+model UserConsent {
+  id              String      @id @default(uuid()) @db.Uuid
+  userId          String      @map("user_id") @db.Uuid
+  type            ConsentType
+  documentVersion String      @map("document_version") @db.VarChar(40)
+  acceptedAt      DateTime    @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, documentVersion])
+  @@index([userId])
+  @@map("user_consents")
+  @@schema("app")
+}
+
+model PatientProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("patient_profiles")
+  @@schema("app")
+}
+
+model Psychologist {
+  id                         String                          @id @default(uuid()) @db.Uuid
+  userId                     String                          @unique @map("user_id") @db.Uuid
+  crp                        String                          @unique @db.VarChar(20)
+  crpStatus                  CrpStatus                       @default(PENDING) @map("crp_status")
+  crpVerifiedAt              DateTime?                       @map("crp_verified_at") @db.Timestamptz(6)
+  crpRegistryCode            String?                         @unique @map("crp_registry_code") @db.VarChar(128)
+  bio                        String?                         @db.Text
+  profileImageUrl            String?                         @map("profile_image_url") @db.Text
+  appointmentDurationMinutes Int                             @default(50) @map("appointment_duration_minutes")
+  offersOnline               Boolean                         @default(false) @map("offers_online")
+  offersInPerson             Boolean                         @default(false) @map("offers_in_person")
+  offersSocial               Boolean                         @default(false) @map("offers_social")
+  isProfilePublic            Boolean                         @default(false) @map("is_profile_public")
+  createdAt                  DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                       User                            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  prices                     PsychologistPrice[]
+  addresses                  PsychologistAddress[]
+  themes                     PsychologistTheme[]
+  specialties                PsychologistSpecialty[]
+  insuranceProviders         PsychologistInsuranceProvider[]
+  availability               PsychologistAvailability[]
+  appointments               Appointment[]
+  externalPatients           ExternalPatient[]
+  paymentAccounts            PsychologistPaymentAccount[]
+  reviews                    PsychologistReview[]
+  favoritedBy                Favorite[]
+  suggestedThemes            Theme[]                         @relation("ThemeCreator")
+
+  @@map("psychologists")
+  @@schema("app")
+}
+
+model PsychologistPrice {
+  id             String       @id @default(uuid()) @db.Uuid
+  psychologistId String       @map("psychologist_id") @db.Uuid
+  priceType      PriceType    @map("price_type")
+  amount         Decimal      @db.Decimal(10, 2)
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologist   Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+
+  @@unique([psychologistId, priceType])
+  @@index([psychologistId])
+  @@map("psychologist_prices")
+  @@schema("app")
+}
+
+model Theme {
+  id                      String              @id @default(uuid()) @db.Uuid
+  name                    String              @db.VarChar(100)
+  slug                    String              @unique @db.VarChar(120)
+  status                  ThemeStatus         @default(PENDING)
+  createdByPsychologistId String?             @map("created_by_psychologist_id") @db.Uuid
+  active                  Boolean             @default(true)
+  createdAt               DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByPsychologist   Psychologist?       @relation("ThemeCreator", fields: [createdByPsychologistId], references: [id], onDelete: SetNull)
+  psychologists           PsychologistTheme[]
+
+  @@index([status, active])
+  @@index([createdByPsychologistId])
+  @@map("themes")
+  @@schema("app")
+}
+
+model PsychologistTheme {
+  psychologistId String       @map("psychologist_id") @db.Uuid
+  themeId        String       @map("theme_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  psychologist   Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  theme          Theme        @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([psychologistId, themeId])
+  @@index([themeId])
+  @@map("psychologist_themes")
+  @@schema("app")
+}
+
+model Specialty {
+  id            String                  @id @default(uuid()) @db.Uuid
+  name          String                  @db.VarChar(100)
+  slug          String                  @unique @db.VarChar(120)
+  active        Boolean                 @default(true)
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologists PsychologistSpecialty[]
+
+  @@map("specialties")
+  @@schema("app")
+}
+
+model PsychologistSpecialty {
+  psychologistId String       @map("psychologist_id") @db.Uuid
+  specialtyId    String       @map("specialty_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  psychologist   Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  specialty      Specialty    @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@id([psychologistId, specialtyId])
+  @@index([specialtyId])
+  @@map("psychologist_specialties")
+  @@schema("app")
+}
+
+model InsuranceProvider {
+  id            String                          @id @default(uuid()) @db.Uuid
+  name          String                          @db.VarChar(120)
+  slug          String                          @unique @db.VarChar(140)
+  active        Boolean                         @default(true)
+  createdAt     DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologists PsychologistInsuranceProvider[]
+
+  @@map("insurance_providers")
+  @@schema("app")
+}
+
+model PsychologistInsuranceProvider {
+  psychologistId      String            @map("psychologist_id") @db.Uuid
+  insuranceProviderId String            @map("insurance_provider_id") @db.Uuid
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  psychologist        Psychologist      @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  insuranceProvider   InsuranceProvider @relation(fields: [insuranceProviderId], references: [id], onDelete: Cascade)
+
+  @@id([psychologistId, insuranceProviderId])
+  @@index([insuranceProviderId])
+  @@map("psychologist_insurance_providers")
+  @@schema("app")
+}
+
+model PsychologistAddress {
+  id             String       @id @default(uuid()) @db.Uuid
+  psychologistId String       @map("psychologist_id") @db.Uuid
+  cep            String       @db.VarChar(8)
+  street         String       @db.VarChar(180)
+  number         String       @db.VarChar(30)
+  complement     String?      @db.VarChar(120)
+  neighborhood   String       @db.VarChar(120)
+  city           String       @db.VarChar(120)
+  state          String       @db.Char(2)
+  latitude       Decimal?     @db.Decimal(9, 6)
+  longitude      Decimal?     @db.Decimal(9, 6)
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologist   Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+
+  @@index([psychologistId])
+  @@index([cep])
+  @@index([state, city])
+  @@map("psychologist_addresses")
+  @@schema("app")
+}
+
+model PsychologistAvailability {
+  id              String          @id @default(uuid()) @db.Uuid
+  psychologistId  String          @map("psychologist_id") @db.Uuid
+  weekday         Weekday
+  startTime       DateTime        @map("start_time") @db.Time(0)
+  endTime         DateTime        @map("end_time") @db.Time(0)
+  appointmentType AppointmentType @map("appointment_type")
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologist    Psychologist    @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+
+  @@index([psychologistId, weekday, active])
+  @@map("psychologist_availability")
+  @@schema("app")
+}
+
+model ExternalPatient {
+  id                  String        @id @default(uuid()) @db.Uuid
+  psychologistId      String        @map("psychologist_id") @db.Uuid
+  name                String        @db.VarChar(160)
+  email               String?       @db.VarChar(320)
+  phone               String?       @db.VarChar(16)
+  administrativeNotes String?       @map("administrative_notes") @db.Text
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologist        Psychologist  @relation(fields: [psychologistId], references: [id], onDelete: Restrict)
+  appointments        Appointment[]
+
+  @@index([psychologistId])
+  @@map("external_patients")
+  @@schema("app")
+}
+
+model Appointment {
+  id                 String              @id @default(uuid()) @db.Uuid
+  psychologistId     String              @map("psychologist_id") @db.Uuid
+  patientUserId      String?             @map("patient_user_id") @db.Uuid
+  externalPatientId  String?             @map("external_patient_id") @db.Uuid
+  appointmentType    AppointmentType     @map("appointment_type")
+  priceType          PriceType           @map("price_type")
+  priceAmount        Decimal             @map("price_amount") @db.Decimal(10, 2)
+  scheduledStart     DateTime            @map("scheduled_start") @db.Timestamptz(6)
+  scheduledEnd       DateTime            @map("scheduled_end") @db.Timestamptz(6)
+  status             AppointmentStatus   @default(PENDING)
+  createdByUserId    String              @map("created_by_user_id") @db.Uuid
+  canceledAt         DateTime?           @map("canceled_at") @db.Timestamptz(6)
+  cancellationReason String?             @map("cancellation_reason") @db.Text
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologist       Psychologist        @relation(fields: [psychologistId], references: [id], onDelete: Restrict)
+  patientUser        User?               @relation("PatientAppointments", fields: [patientUserId], references: [id], onDelete: Restrict)
+  externalPatient    ExternalPatient?    @relation(fields: [externalPatientId], references: [id], onDelete: Restrict)
+  createdByUser      User                @relation("CreatedAppointments", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  payments           Payment[]
+  review             PsychologistReview?
+
+  @@index([psychologistId, scheduledStart])
+  @@index([patientUserId, scheduledStart])
+  @@index([externalPatientId])
+  @@index([createdByUserId])
+  @@index([status, scheduledStart])
+  @@map("appointments")
+  @@schema("app")
+}
+
+model Payment {
+  id                 String               @id @default(uuid()) @db.Uuid
+  appointmentId      String               @map("appointment_id") @db.Uuid
+  provider           PaymentProvider
+  providerPaymentId  String?              @map("provider_payment_id") @db.VarChar(160)
+  paymentMethod      PaymentMethod        @map("payment_method")
+  status             PaymentStatus        @default(PENDING)
+  grossAmount        Decimal              @map("gross_amount") @db.Decimal(10, 2)
+  platformFeeRate    Decimal              @default(0.05) @map("platform_fee_rate") @db.Decimal(6, 5)
+  platformFeeAmount  Decimal              @map("platform_fee_amount") @db.Decimal(10, 2)
+  psychologistAmount Decimal              @map("psychologist_amount") @db.Decimal(10, 2)
+  providerFeeAmount  Decimal              @default(0) @map("provider_fee_amount") @db.Decimal(10, 2)
+  currency           String               @default("BRL") @db.Char(3)
+  paidAt             DateTime?            @map("paid_at") @db.Timestamptz(6)
+  expiresAt          DateTime?            @map("expires_at") @db.Timestamptz(6)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  appointment        Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  pixPayment         PixPayment?
+  cardMetadata       CardPaymentMetadata?
+  refunds            Refund[]
+
+  @@unique([provider, providerPaymentId])
+  @@index([appointmentId])
+  @@index([status, createdAt])
+  @@map("payments")
+  @@schema("app")
+}
+
+model PixPayment {
+  paymentId  String    @id @map("payment_id") @db.Uuid
+  qrCodeText String?   @map("qr_code_text") @db.Text
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  payment    Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("pix_payments")
+  @@schema("app")
+}
+
+model CardPaymentMetadata {
+  paymentId    String   @id @map("payment_id") @db.Uuid
+  brand        String?  @db.VarChar(40)
+  lastFour     String?  @map("last_four") @db.Char(4)
+  installments Int?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  payment      Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("card_payment_metadata")
+  @@schema("app")
+}
+
+model PsychologistPaymentAccount {
+  id                String          @id @default(uuid()) @db.Uuid
+  psychologistId    String          @map("psychologist_id") @db.Uuid
+  provider          PaymentProvider
+  providerAccountId String?         @map("provider_account_id") @db.VarChar(160)
+  connected         Boolean         @default(false)
+  connectedAt       DateTime?       @map("connected_at") @db.Timestamptz(6)
+  disconnectedAt    DateTime?       @map("disconnected_at") @db.Timestamptz(6)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologist      Psychologist    @relation(fields: [psychologistId], references: [id], onDelete: Restrict)
+
+  @@unique([psychologistId, provider])
+  @@index([psychologistId])
+  @@map("psychologist_payment_accounts")
+  @@schema("app")
+}
+
+model PaymentWebhookEvent {
+  id                String          @id @default(uuid()) @db.Uuid
+  provider          PaymentProvider
+  providerEventId   String?         @map("provider_event_id") @db.VarChar(160)
+  eventType         String          @map("event_type") @db.VarChar(120)
+  providerPaymentId String?         @map("provider_payment_id") @db.VarChar(160)
+  processed         Boolean         @default(false)
+  processedAt       DateTime?       @map("processed_at") @db.Timestamptz(6)
+  receivedAt        DateTime        @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  @@unique([provider, providerEventId])
+  @@index([processed, receivedAt])
+  @@index([provider, providerPaymentId])
+  @@map("payment_webhook_events")
+  @@schema("app")
+}
+
+model Refund {
+  id               String       @id @default(uuid()) @db.Uuid
+  paymentId        String       @map("payment_id") @db.Uuid
+  providerRefundId String       @map("provider_refund_id") @db.VarChar(160)
+  amount           Decimal      @db.Decimal(10, 2)
+  status           RefundStatus @default(PENDING)
+  reason           String?      @db.Text
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  processedAt      DateTime?    @map("processed_at") @db.Timestamptz(6)
+  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@unique([paymentId, providerRefundId])
+  @@index([paymentId])
+  @@map("refunds")
+  @@schema("app")
+}
+
+model PsychologistReview {
+  id             String       @id @default(uuid()) @db.Uuid
+  psychologistId String       @map("psychologist_id") @db.Uuid
+  patientUserId  String       @map("patient_user_id") @db.Uuid
+  appointmentId  String       @unique @map("appointment_id") @db.Uuid
+  rating         Int
+  comment        String?      @db.Text
+  status         ReviewStatus @default(PENDING)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  psychologist   Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Restrict)
+  patientUser    User         @relation(fields: [patientUserId], references: [id], onDelete: Restrict)
+  appointment    Appointment  @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+
+  @@index([psychologistId, status])
+  @@index([patientUserId])
+  @@map("psychologist_reviews")
+  @@schema("app")
+}
+
+model Favorite {
+  userId         String       @map("user_id") @db.Uuid
+  psychologistId String       @map("psychologist_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  psychologist   Psychologist @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+
+  @@id([userId, psychologistId])
+  @@index([psychologistId])
+  @@map("favorites")
+  @@schema("app")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String   @db.VarChar(120)
+  entityType  String   @map("entity_type") @db.VarChar(100)
+  entityId    String   @map("entity_id") @db.Uuid
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actorUser   User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("audit_logs")
+  @@schema("app")
+}
